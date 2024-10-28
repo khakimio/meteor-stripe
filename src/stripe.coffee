@@ -47,6 +47,23 @@ class Stripe
   createCustomer: (params) ->
     await @stripe.customers.create(params)
 
+  payWithCard: (params) ->
+    await @stripe.paymentMethods.create({
+      type: 'card'
+      card: params.card
+    }).then (paymentMethod) =>
+      await @stripe.paymentIntents.create({
+        amount: params.amount
+        currency: params.currency or @config().currency
+        payment_method: paymentMethod.id
+        confirm: true
+        customer: params.customerId
+        setup_future_usage: params.setupFutureUsage
+        metadata: {
+          order_id: params.orderId # Добавляем order_id в metadata
+        }
+      })
+      
   onPaymentSucceeded: (cb) -> @_onPaymentSucceeded = cb
   onPaymentFailed: (cb) -> @_onPaymentFailed = cb
   onRefundSucceeded: (cb) -> @_onRefundSucceeded = cb
