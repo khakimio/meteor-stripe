@@ -63,7 +63,7 @@ class Stripe
           order_id: params.orderId # Добавляем order_id в metadata
         }
       })
-      
+
   onPaymentSucceeded: (cb) -> @_onPaymentSucceeded = cb
   onPaymentFailed: (cb) -> @_onPaymentFailed = cb
   onRefundSucceeded: (cb) -> @_onRefundSucceeded = cb
@@ -107,4 +107,4 @@ class Stripe
       res.writeHead(400)
       res.end(JSON.stringify(error: err.message))
 
-export default new Stripe()
+export default Stripe = new Stripe
