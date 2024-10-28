@@ -13,12 +13,10 @@ Package.onUse(function(api) {
   api.use('underscore');
   api.use('ecmascript');
   api.use('coffeescript');
-  api.mainModule('meteor-stripe.js');
+
+  api.mainModule('src/stripe.coffee', 'server');
 });
 
-Package.onTest(function(api) {
-  api.use('underscore');
-  api.use('ecmascript');
-  api.use('coffeescript');
-  api.mainModule('meteor-stripe-tests.js');
+Npm.depends({
+  'stripe': '13.7.0'
 });
