@@ -1,12 +1,12 @@
 import {Meteor} from 'meteor/meteor'
 import {WebApp} from 'meteor/webapp'
 import {fetch} from 'meteor/fetch'
-import Stripe from 'stripe'
+import StripeAPI from 'stripe'
 
 class Stripe
   constructor: ->
     config = @config()
-    @stripe = new Stripe(config.secretKey)
+    @stripe = new StripeAPI(config.secretKey)
     @_setupWebhookHandler()
 
   config: (cfg) ->
