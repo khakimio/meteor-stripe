@@ -1,5 +1,5 @@
 Package.describe({
-  name: 'meteor-stripe',
+  name: 'khakimio:meteor-stripe',
   version: '0.0.1',
   summary: 'Meteor Stripe integration',
   git: 'https://github.com/khakimio/meteor-stripe',
