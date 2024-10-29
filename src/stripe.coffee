@@ -2,17 +2,19 @@ import {Meteor} from 'meteor/meteor'
 import {WebApp} from 'meteor/webapp'
 import {fetch} from 'meteor/fetch'
 import StripeAPI from 'stripe'
+import {getConfig} from './config'
 
 class Stripe
   constructor: ->
-    config = @config()
+    config = getConfig()
     @stripe = new StripeAPI(config.secretKey)
     @_setupWebhookHandler()
 
   config: (cfg) ->
-    @_config ?= Meteor.settings.stripe
-    return @_config unless cfg
-    Object.assign(@_config, cfg)
+    config = getConfig()
+    return config unless cfg
+    handlerUpdated = false
+    Object.assign(config, cfg)
     
   createOrder: (params) ->
     await @stripe.orders.create(params)
