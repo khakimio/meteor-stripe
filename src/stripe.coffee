@@ -13,26 +13,10 @@ class Stripe
   config: (cfg) ->
     config = getConfig()
     return config unless cfg
-    handlerUpdated = false
     Object.assign(config, cfg)
-    
-  createOrder: (params) ->
-    await @stripe.orders.create(params)
 
-  retrieveOrder: (id) ->
-    await @stripe.orders.retrieve(id)
-
-  updateOrder: (id, params) ->
-    await @stripe.orders.update(id, params)
-
-  cancelOrder: (id) ->
-    await @stripe.orders.cancel(id)
-
-  listOrders: (params) ->
-    await @stripe.orders.list(params)
-
-  createPaymentIntent: (params) ->
-    await @stripe.paymentIntents.create(params)
+  createCheckoutSession: (params) ->
+    await @stripe.checkout.sessions.create(params)
 
   retrievePaymentIntent: (id) ->
     await @stripe.paymentIntents.retrieve(id)
@@ -49,64 +33,60 @@ class Stripe
   createCustomer: (params) ->
     await @stripe.customers.create(params)
 
-  payWithCard: (params) ->
-    await @stripe.paymentMethods.create({
-      type: 'card'
-      card: params.card
-    }).then (paymentMethod) =>
-      await @stripe.paymentIntents.create({
-        amount: params.amount
-        currency: params.currency or @config().currency
-        payment_method: paymentMethod.id
-        confirm: true
-        customer: params.customerId
-        setup_future_usage: params.setupFutureUsage
-        metadata: {
-          order_id: params.orderId # Добавляем order_id в metadata
-        }
-      })
-
   onPaymentSucceeded: (cb) -> @_onPaymentSucceeded = cb
   onPaymentFailed: (cb) -> @_onPaymentFailed = cb
   onRefundSucceeded: (cb) -> @_onRefundSucceeded = cb
 
   _setupWebhookHandler: ->
     config = @config()
-    WebApp.connectHandlers.use "/api/#{config.webhookPath}", @_webhookHandler
+    @webhookPath = "/api/#{config.webhookPath}"
+    
+    WebApp.rawConnectHandlers.use (req, res, next) =>
+      isWebhook = req.url == @webhookPath && req.method == 'POST'
 
-  _webhookHandler: (req, res, next) =>
-    return res.writeHead(405) if req.method isnt 'POST'
+      unless isWebhook
+        next()
+        return
+        
+      @_handleWebhookData(req, res, next)
 
-    body = await new Promise (resolve, reject) ->
-      chunks = []
-      req.on 'data', (chunk) -> chunks.push(chunk)
-      req.on 'end', -> resolve Buffer.concat(chunks).toString('utf-8')
-      req.on 'error', reject
+  _handleWebhookData: (req, res, next) ->
+    rawBody = ''
+    req.on 'data', (chunk) -> rawBody += chunk
+    req.on 'end', => 
+      req.rawBody = rawBody
+      try 
+        event = @_validateWebhookSignature(req)
+        await @_handleStripeEvent(event)
+        @_sendResponse(res, 200, received: true)
+      catch err
+        @_sendResponse(res, 400, error: "An error occurred while processing webhook: #{err.message}")
 
-    signature = req.headers['stripe-signature']
+  _validateWebhookSignature: (req) ->
     config = @config()
+    body = req.rawBody?.toString() || ''
+    sig = req.headers['stripe-signature']
+    webhookSecret = config.webhookSecret
 
-    try
-      event = @stripe.webhooks.constructEvent(
-        body,
-        signature,
-        config.webhookSecret
-      )
+    if !sig || !webhookSecret
+      throw new Error('Webhook secret not found.')
 
-      switch event.type
-        when 'payment_intent.succeeded'
-          await @_onPaymentSucceeded?(event.data.object)
-        when 'payment_intent.payment_failed'
-          await @_onPaymentFailed?(event.data.object)
-        when 'charge.refunded'
-          await @_onRefundSucceeded?(event.data.object)
+    @stripe.webhooks.constructEvent(body, sig, webhookSecret)
 
-      res.writeHead(200)
-      res.end(JSON.stringify(received: true))
+  _handleStripeEvent: (event) ->
+    console.log('>>>>>> Webhook received:', event.type)
+    switch event.type
+      when 'charge.succeeded'
+        await @_onPaymentSucceeded?(event.data.object)
+      when 'charge.failed'
+        await @_onPaymentFailed?(event.data.object)
+      when 'charge.refunded'
+        await @_onRefundSucceeded?(event.data.object)
+      else
+        console.log 'Unknown event type:', event.type
 
-    catch err
-      console.error('Stripe webhook error:', err.message)
-      res.writeHead(400)
-      res.end(JSON.stringify(error: err.message))
+  _sendResponse: (res, statusCode, data) ->
+    res.writeHead(statusCode)
+    res.end(JSON.stringify(data))
 
 export default Stripe = new Stripe
