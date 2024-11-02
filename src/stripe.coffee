@@ -15,6 +15,32 @@ class Stripe
     return config unless cfg
     Object.assign(config, cfg)
 
+  createOrder: (params) ->
+    try
+      response = await @stripe.checkout.sessions.create
+        success_url: params.successRedirectUrl
+        cancel_url: params.cancelUrl
+        metadata:
+          order_id: params.orderId
+          phone: params.phone
+        mode: 'payment'
+        line_items: [
+          price_data:
+            currency: params.currency
+            unit_amount: params.amount
+            product_data:
+              name: params.description
+          quantity: 1
+        ]
+
+      return  
+        redirectUrl: response.url
+        gatewayOrderId: response.id
+
+    catch error
+      console.error 'Error creating order:', error
+      throw error
+
   createCheckoutSession: (params) ->
     await @stripe.checkout.sessions.create(params)
 
