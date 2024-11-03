@@ -39,6 +39,24 @@ class Stripe
       console.error 'Error creating order:', error
       throw error
 
+  payWithCard: (params) ->
+    try
+      response = await @stripe.paymentIntents.create
+        amount: params.amount
+        currency: params.currency
+        payment_method: params.paymentMethodId
+        customer: params.customerId
+        confirm: true
+        return_url: params.return_url
+        metadata:
+          order_id: params.orderId
+          
+      return response
+      
+    catch error
+      console.error 'Error paying with card:', error
+      throw error
+
   createCheckoutSession: (params) ->
     await @stripe.checkout.sessions.create(params)
 
