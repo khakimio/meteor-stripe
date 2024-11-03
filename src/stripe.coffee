@@ -33,10 +33,8 @@ class Stripe
           quantity: 1
         ]
 
-      return  
-        redirectUrl: response.url
-        gatewayOrderId: response.id
-
+      return response
+      
     catch error
       console.error 'Error creating order:', error
       throw error
