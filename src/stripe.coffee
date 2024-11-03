@@ -102,7 +102,7 @@ class Stripe
   _handleStripeEvent: (event) ->
     console.log('>>>>>> Webhook received:', event.type)
     switch event.type
-      when 'charge.succeeded'
+      when 'checkout.session.completed'
         await @_onPaymentSucceeded?(event.data.object)
       when 'charge.failed'
         await @_onPaymentFailed?(event.data.object)
